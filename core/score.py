@@ -278,8 +278,16 @@ def main():
         if FORECASTS.exists() else []
     settled = [e for e in entries if e["status"] in ("won", "lost")]
     if not settled:
-        print(json.dumps({"settled": 0, "open": sum(1 for e in entries if e["status"] == "open"),
-                          "forecasts": forecast_report(frows)}))
+        n_open = sum(1 for e in entries if e["status"] == "open")
+        if args.json:
+            print(json.dumps({"settled": 0, "open": n_open,
+                              "forecasts": forecast_report(frows)}))
+            return
+        # Same first two lines as a populated report, so a fresh ledger (a new
+        # venue branch) reads the same way to people and scripts.
+        print(f"settled=0 win_rate=n/a pnl=$0.0 roi=n/a open={n_open}")
+        print("brier: agent=n/a market=n/a delta=n/a (no settled bets yet)")
+        print(json.dumps({"forecasts": forecast_report(frows)}))
         return
 
     report = {"overall": stats(settled), "luck_adjusted": luck_adjusted(settled),

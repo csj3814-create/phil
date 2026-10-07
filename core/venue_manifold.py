@@ -30,7 +30,7 @@ import venue_common as vc
 API = "https://api.manifold.markets/v0"
 VOID_GRACE_HOURS = 24 * 14
 RAW_PAGE = 1000          # Manifold's max page size for /search-markets
-RAW_CAP = 4000           # most raw markets one gamma_markets() call pages
+RAW_CAP = 2000           # Manifold refuses offset >= 2000 (HTTP 400)
 # Polymarket tag ids that core/ or strategy/ still pass -> Manifold topic slugs
 TAG_MAP = {100328: "economics-default", "100328": "economics-default"}
 SORT_MAP = {"endDate": "close-date", "volume24hr": "24-hour-vol",
@@ -116,7 +116,12 @@ def _search_all(params):
     hi = vc.parse_iso(params.get("end_date_max"))
     out, offset = [], 0
     while offset < RAW_CAP:
-        batch = vc.get_json(f"{API}/search-markets", dict(q, offset=offset))
+        try:
+            batch = vc.get_json(f"{API}/search-markets", dict(q, offset=offset))
+        except RuntimeError:
+            if not offset:
+                raise
+            break      # a later page failing still leaves the earlier pages
         if not batch:
             break
         offset += len(batch)
