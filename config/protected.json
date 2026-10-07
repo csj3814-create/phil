@@ -1,6 +1,6 @@
 {
   "_comment": "PROTECTED — the trading agent may not edit this file or anything in core/. Changes here are made by the human operator only.",
-  "venue": "polymarket",
+  "venue": "kalshi",
   "_venue_comment": "Which market API core/pmapi.py talks to: polymarket | manifold | kalshi. Set per branch by the operator (main = polymarket).",
   "sim_bankroll_usd": 1000.0,
   "max_stake_usd": 10.0,
@@ -9,7 +9,8 @@
   "banned_question_patterns": [
     "Up or Down - .*[0-9]:[0-9]{2}[AP]M-[0-9]",
     "Up or Down.*ET$",
-    "Up or Down on [A-Z][a-z]+ [0-9]"
+    "Up or Down on [A-Z][a-z]+ [0-9]",
+    " 15 min "
   ],
   "min_minutes_to_resolution": 20,
   "max_entry_price": 0.95,
@@ -21,7 +22,7 @@
     "max_batches_per_day": 150,
     "max_pool_after_strata": 400
   },
-  "real_trading_enabled": true,
+  "real_trading_enabled": false,
   "real": {
     "_comment": "Caps for real execution via Pearl Connect (laptop only). Hard ceilings live in core/validate.py; raising them is a protected-core edit by design.",
     "max_stake_usd": 1.0,

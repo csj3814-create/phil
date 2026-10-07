@@ -6,20 +6,27 @@ bounds) to whatever comes back. I decide WHAT TO LOOK FOR; core decides what is
 allowed. A query I write cannot let a banned market through, so I can explore
 freely.
 
-Why this file exists (operator, 2026-08-03): for two days I produced zero bets
-and correctly logged "no qualifying candidate" every cycle. The cause was not
-the market — it was that scan paged in endDate order through a near-term
-universe thousands of sub-daily markets deep and never escaped day 0. My
-candidate pool was an artifact of a tool I could not edit and could not see
-into. Now I can. Use it: if the pool looks structurally wrong, change the
-queries and say so in the retro.
+VENUE: KALSHI (operator seed, 2026-10-07 — see VENUE.md). The Polymarket
+queries and their history live on branch `main`. core/venue_kalshi.py crawls
+every open Kalshi event once (cached 20 min) and emulates gamma `/markets`
+params client-side:
+  order             endDate (expected expiration), volume24hr, volume,
+                    liquidity (= open interest), createdAt
+  ascending         "true"/"false"
+  end_date_min/max  expected-expiration window
+  volume_num_min    lifetime volume floor, in CONTRACTS ($1 notional each)
+  liquidity_num_min open-interest floor, in contracts
+  tag_id            a Kalshi event category: Economics, Financials, Politics,
+                    Elections, Sports, Climate and Weather, Entertainment,
+                    Companies, Science and Technology, Crypto, Commodities,
+                    Mentions, World, Health, AI ... (strategy/tools/tags.py list)
+Each Kalshi market is one rung of an event (a strike, a candidate); the
+question reads "<event title> — <rung>". Floors below are first guesses —
+re-tune them from what scan's stderr reports.
 
-Contract: return a list of dicts of gamma `/markets` query params. Optional
-`_label` names the query in scan's stderr. Anything raising here falls back to
-core's default query (loudly), so a bug degrades sensing but never blinds me.
-Gamma params that work: closed, order (endDate|volume24hr|liquidity),
-ascending, end_date_min, end_date_max, volume_num_min, liquidity_num_min,
-tag_id, related_tags.
+Contract: return a list of dicts of query params. Optional `_label` names the
+query in scan's stderr. Anything raising here falls back to core's default
+query (loudly), so a bug degrades sensing but never blinds me.
 """
 
 
@@ -29,39 +36,22 @@ def queries(now, min_end, horizon, args, protected):
             "end_date_max": iso(horizon)}
 
     return [
-        # 1. Well-covered events out to the horizon. The lifetime-volume floor
-        #    is what lets pagination escape today; do NOT add a 24h-volume
-        #    floor here — an event five days out legitimately has little volume
-        #    today, which re-creates the blindness this file was made to fix.
-        {**base, "_label": "liquid-multiday", "order": "endDate",
-         "ascending": "true", "volume_num_min": 50000},
+        # 1. Where money is moving today inside the window.
+        {**base, "_label": "active-24h", "order": "volume24hr",
+         "ascending": "false", "volume_num_min": 500},
 
-        # 2. Deep books regardless of date order — surfaces the biggest events
-        #    in the window (ATP/WTA main draws, major-league fixtures) even if
-        #    thousands of small markets resolve sooner.
-        {**base, "_label": "by-liquidity", "order": "liquidity",
-         "ascending": "false", "liquidity_num_min": 20000},
+        # 2. Deep open interest regardless of today's flow.
+        {**base, "_label": "deep-oi", "order": "liquidity",
+         "ascending": "false", "liquidity_num_min": 2000},
 
-        # 3. Today's active markets, kept from the old behaviour so nothing
-        #    imminent is lost: heavy recent trading, near-term resolution.
-        {"closed": "false", "_label": "active-today", "order": "volume24hr",
-         "ascending": "false", "end_date_min": iso(min_end),
-         "end_date_max": iso(min(horizon, now.replace(microsecond=0) +
-                                 __import__("datetime").timedelta(hours=36)))},
+        # 3. Official-number lanes (the fact-finality profile the Polymarket
+        #    record favoured — CPI, jobs, Fed, GDP; re-test it here).
+        {**base, "_label": "econ", "tag_id": "Economics",
+         "order": "volume24hr", "ascending": "false"},
+        {**base, "_label": "financials", "tag_id": "Financials",
+         "order": "volume24hr", "ascending": "false", "volume_num_min": 200},
 
-        # 4. Category-targeted, asymmetric floor (operator-notes.md 2026-08-05:
-        #    a $20k econ market with a free official benchmark is worth more
-        #    research time than a $400k tennis match with no reachable status
-        #    source — queries 1-3 are volume/liquidity-first and bury these).
-        #    tag_id 100328 = Polymarket's "Economy" tag; verified live
-        #    2026-08-05 it surfaces Fed-rate-decision markets ($300k-590k
-        #    volume24hr, FOMC tag 100478 is a subset) and GDP brackets
-        #    ($700-2800 volume24hr, would never clear query 1's 50k floor).
-        #    These resolve off an official print/vote, not a narrative read —
-        #    the fact-finality profile the settled evidence favors. No volume
-        #    floor here on purpose; thin but mechanically-resolving is the
-        #    point. (climate-weather tag 1474 checked same day: 0 live
-        #    markets currently, so not included — revisit if that changes.)
-        {**base, "_label": "econ-tag", "tag_id": 100328, "order": "volume24hr",
-         "ascending": "false"},
+        # 4. Weather settles on an official station reading — mechanical.
+        {**base, "_label": "weather", "tag_id": "Climate and Weather",
+         "order": "volume24hr", "ascending": "false", "volume_num_min": 200},
     ]
