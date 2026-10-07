@@ -58,26 +58,11 @@
     "Amended 2026-09-24 07:4xZ (TRIGGERED cycle, cloud): pruned the SNB Sep24 calendar entry and its paired price_move (market 4443883) -- the decision is out (SNB's own press release, pre_20260924: policy rate held at 0%, matching the no-change Yes side exactly). No-side edge already exhausted pre-print (CLOB bid 0.999, no ask); nothing left to watch for on this market.",
     "Amended 2026-09-30 00:5xZ (TRIGGERED cycle: pricemove:3938031, cloud): pruned five watch.py-reported expired price_moves, all Sep 20/21-election items whose positions have since settled (23e40bbbccc5 lost, 9074e3f2fd49 won, 475edf2e2654 won, 7ec71e307f12 lost -- MV CDU, Russia UR sweep, Russia turnout, Berlin Linke) plus the Xi-visit market-agrees entry (forecast 65f80b2eb530, past its Sep25 expiry, no reversal ever fired). Also pruned the UMich Sep25 calendar entry (forecast 3904e426ee6d settled WON, already graded). This tick's trigger, the core-PCE (3938031) price move, is the fourth fire on this key: mid spiked 0.73->0.955 over 00:44-00:51Z then reverted to 0.85 by 00:52Z (prices-history 1min bars) -- a thin-book print, not a sustained repricing, same pattern as the three Sep18/20/21 fires that motivated the 0.05->0.10 threshold raise. Left the threshold as-is: the entry expires at 12:00Z today (12.5h left, then the paired BEA calendar entry takes over at the actual release), too little runway left to be worth re-tuning."
   ],
-  "price_moves": [
-    {
-      "market_id": "3938031",
-      "token_id": "39400114973934221253761872304842829808714135241326313029175177821282061696710",
-      "label": "Will Core PCE YoY be 3.3% in August? (No, open position 8894592b953a, entry 0.68, est No 0.76; a move toward Yes means a dated consensus or a bank tracker has settled on 3.3 -- re-read the camps (Fed staff/GS ~3.2 vs BofA/Cleveland ~3.4); BEA release Sep 30 12:30Z)",
-      "move_threshold": 0.1,
-      "window_min": 60,
-      "expires": "2026-09-30T12:00:00Z"
-    }
-  ],
+  "price_moves": [],
   "new_market": {
     "enabled": true,
-    "min_liquidity": 5000,
+    "min_liquidity": 1000,
     "keywords": []
   },
-  "calendar": [
-    {
-      "label": "BEA August 2026 Personal Income and Outlays (12:30Z) - core PCE YoY, bet 8894592b953a No on 3.3pct @0.68 (forecast 60a82af6f2e6) plus forecast-only siblings 9f05a589aba3 (3.2 Yes 0.49, vetoed) / 66fb88403435 / 8356b12268ee and MoM 9a871262d874 -- grade the two-camp read: Fed staff ~3.2 + GS 3.16 vs BofA 3.4 + Cleveland 3.40 vs PM modal 3.3",
-      "fire_at": "2026-09-30T12:30:00Z",
-      "window_min": 45
-    }
-  ]
+  "calendar": []
 }

@@ -6,20 +6,27 @@ bounds) to whatever comes back. I decide WHAT TO LOOK FOR; core decides what is
 allowed. A query I write cannot let a banned market through, so I can explore
 freely.
 
-Why this file exists (operator, 2026-08-03): for two days I produced zero bets
-and correctly logged "no qualifying candidate" every cycle. The cause was not
-the market — it was that scan paged in endDate order through a near-term
-universe thousands of sub-daily markets deep and never escaped day 0. My
-candidate pool was an artifact of a tool I could not edit and could not see
-into. Now I can. Use it: if the pool looks structurally wrong, change the
-queries and say so in the retro.
+VENUE: MANIFOLD (operator seed, 2026-10-07 — see VENUE.md). The Polymarket
+queries and their history live on branch `main`. core/venue_manifold.py
+emulates gamma `/markets` params on Manifold's search API:
+  closed            "false" -> open markets, "true" -> resolved
+  order             endDate (close-date, soonest first), volume24hr,
+                    liquidity, createdAt (newest), volume (most popular)
+  ascending         client-side re-sort of what was fetched
+  end_date_min/max  closeTime window (client-side)
+  volume_num_min    lifetime volume floor, in mana
+  liquidity_num_min AMM liquidity floor (totalLiquidity), in mana
+  tag_id            a Manifold topic slug, e.g. "economics-default",
+                    "sports-default", "politics-default", "technology-default"
+                    (strategy/tools/tags.py list prints them)
+  term              free-text search
+Only BINARY cpmm-1 markets are returned. Manifold volumes are play money and
+much smaller than Polymarket's: the floors below are first guesses, not
+evidence — re-tune them from what scan's stderr reports.
 
-Contract: return a list of dicts of gamma `/markets` query params. Optional
-`_label` names the query in scan's stderr. Anything raising here falls back to
-core's default query (loudly), so a bug degrades sensing but never blinds me.
-Gamma params that work: closed, order (endDate|volume24hr|liquidity),
-ascending, end_date_min, end_date_max, volume_num_min, liquidity_num_min,
-tag_id, related_tags.
+Contract: return a list of dicts of query params. Optional `_label` names the
+query in scan's stderr. Anything raising here falls back to core's default
+query (loudly), so a bug degrades sensing but never blinds me.
 """
 
 
@@ -29,39 +36,21 @@ def queries(now, min_end, horizon, args, protected):
             "end_date_max": iso(horizon)}
 
     return [
-        # 1. Well-covered events out to the horizon. The lifetime-volume floor
-        #    is what lets pagination escape today; do NOT add a 24h-volume
-        #    floor here — an event five days out legitimately has little volume
-        #    today, which re-creates the blindness this file was made to fix.
-        {**base, "_label": "liquid-multiday", "order": "endDate",
-         "ascending": "true", "volume_num_min": 50000},
+        # 1. Everything closing inside the horizon with real trading behind it,
+        #    soonest first: fast feedback is what calibration needs.
+        {**base, "_label": "closing-soon", "order": "endDate",
+         "ascending": "true", "volume_num_min": 2000},
 
-        # 2. Deep books regardless of date order — surfaces the biggest events
-        #    in the window (ATP/WTA main draws, major-league fixtures) even if
-        #    thousands of small markets resolve sooner.
-        {**base, "_label": "by-liquidity", "order": "liquidity",
-         "ascending": "false", "liquidity_num_min": 20000},
-
-        # 3. Today's active markets, kept from the old behaviour so nothing
-        #    imminent is lost: heavy recent trading, near-term resolution.
-        {"closed": "false", "_label": "active-today", "order": "volume24hr",
-         "ascending": "false", "end_date_min": iso(min_end),
-         "end_date_max": iso(min(horizon, now.replace(microsecond=0) +
-                                 __import__("datetime").timedelta(hours=36)))},
-
-        # 4. Category-targeted, asymmetric floor (operator-notes.md 2026-08-05:
-        #    a $20k econ market with a free official benchmark is worth more
-        #    research time than a $400k tennis match with no reachable status
-        #    source — queries 1-3 are volume/liquidity-first and bury these).
-        #    tag_id 100328 = Polymarket's "Economy" tag; verified live
-        #    2026-08-05 it surfaces Fed-rate-decision markets ($300k-590k
-        #    volume24hr, FOMC tag 100478 is a subset) and GDP brackets
-        #    ($700-2800 volume24hr, would never clear query 1's 50k floor).
-        #    These resolve off an official print/vote, not a narrative read —
-        #    the fact-finality profile the settled evidence favors. No volume
-        #    floor here on purpose; thin but mechanically-resolving is the
-        #    point. (climate-weather tag 1474 checked same day: 0 live
-        #    markets currently, so not included — revisit if that changes.)
-        {**base, "_label": "econ-tag", "tag_id": 100328, "order": "volume24hr",
+        # 2. Where the crowd is active right now, inside the window.
+        {**base, "_label": "active-24h", "order": "volume24hr",
          "ascending": "false"},
+
+        # 3. Deep pools: my fill is closest to the quoted probability here.
+        {**base, "_label": "deep-pools", "order": "liquidity",
+         "ascending": "false", "liquidity_num_min": 500},
+
+        # 4. Official-number markets (the fact-finality profile the Polymarket
+        #    record favoured — re-test it here).
+        {**base, "_label": "econ-topic", "tag_id": "economics-default",
+         "order": "endDate", "ascending": "true"},
     ]

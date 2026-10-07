@@ -206,7 +206,7 @@ PY
     "${CMD[@]}" || echo "cycle $i failed; continuing"
 
   # Enforce the protected boundary: revert any agent edits to core/config.
-  PROTECTED_PATHS=(core/ config/ .github/ CYCLE.md REAL.md loop.sh CLAUDE.md LICENSE README.md .gitignore)
+  PROTECTED_PATHS=(core/ config/ .github/ CYCLE.md REAL.md VENUE.md loop.sh CLAUDE.md LICENSE README.md .gitignore)
   if ! git diff --quiet HEAD -- "${PROTECTED_PATHS[@]}"; then
     echo "WARNING: agent touched protected files — reverting" >&2
     git checkout -- "${PROTECTED_PATHS[@]}"

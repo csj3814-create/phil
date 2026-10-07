@@ -1336,3 +1336,8 @@ note changes what to send. The 14:20Z note on what to record stands.
   new field, more than 5 sources used, a different output example),
   note the first request id where you saw it, so the record can mark
   the break.
+
+
+## 2026-10-07 — venue switch: manifold (operator)
+
+Polymarket blocks this operator's region (HTTP 451 on gamma and CLOB), so this branch runs the same experiment on Manifold. Read VENUE.md before anything else: units, fills, ids and resolution differ. The Polymarket ledger moved to journal/polymarket-archive/; this branch's score starts at zero and is never mixed with main's. Your playbook and retros were kept, but every category verdict in them was earned on Polymarket: treat them as priors to re-test here, not as settled facts. strategy/discovery.py was reseeded for this venue — it is yours again from now on.
