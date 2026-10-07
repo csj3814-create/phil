@@ -25,20 +25,14 @@ whose range contains another market's threshold) is not itself inconsistent
 """
 import json
 import os
+import pathlib
 import sys
-import urllib.request
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "core"))
+import pmapi  # noqa: E402
 
 FORECASTS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "..", "..", "journal", "forecasts.jsonl")
-EVENTS_URL = "https://gamma-api.polymarket.com/events/{}"
-MARKET_URL = "https://gamma-api.polymarket.com/markets?id={}"
-HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; paper-trader-siblings)"}
-
-
-def fetch(url):
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.load(r)
 
 
 def open_forecasts():
@@ -68,18 +62,17 @@ def open_forecasts():
 
 
 def main(market_id):
-    # NOTE: /markets/<id> (singular) omits the `events` field entirely; only
-    # the /markets?id=<id> (list-shaped) response carries it. Verified live
-    # 2026-08-05 -- do not "simplify" this back to the singular path.
-    matches = fetch(MARKET_URL.format(market_id))
-    market = matches[0] if matches else {}
+    # Venue note (operator, 2026-10-07): event + sibling reads go through
+    # core/pmapi.py so this works on every venue. On Kalshi an event is a
+    # strike ladder / candidate list; on Manifold every market is its own event.
+    market = pmapi.gamma_market(market_id)
     events = market.get("events") or []
     if not events:
         print(json.dumps({"error": "no event on this market", "market_id": market_id}))
         return
     event_id = events[0]["id"]
-    event = fetch(EVENTS_URL.format(event_id))
-    siblings = event.get("markets") or []
+    siblings = pmapi.event_markets(event_id)
+    event = {"title": (market.get("question") or "").split(" — ")[0]}
     covered = open_forecasts()
     n_covered = 0
     yes_sum = 0.0

@@ -257,12 +257,11 @@ def check_price_moves(entries, notes):
     fires = []
     for e in entries:
         try:
-            body = fetch_json(f"{pmapi.CLOB}/prices-history",
-                              {"market": e["token_id"], "interval": "1h"})
+            history = pmapi.price_history(
+                e["token_id"], hours=max(1, -(-int(e["window_min"]) // 60)))
         except Exception as exc:  # noqa: BLE001 - one dead token is not a verdict
             notes.append(f"price history for {e['label']}: {exc}")
             continue
-        history = body.get("history") if isinstance(body, dict) else body
         points = []
         for p in history or []:
             try:
@@ -324,9 +323,8 @@ def check_new_markets(cfg, now, notes):
     keywords = [str(k).strip().lower() for k in cfg.get("keywords") or []
                 if str(k).strip()]
     try:
-        batch = fetch_json(f"{pmapi.GAMMA}/markets",
-                           {"closed": "false", "order": "createdAt",
-                            "ascending": "false", "limit": 100})
+        batch = pmapi.gamma_markets(closed="false", order="createdAt",
+                                    ascending="false", limit=100)
     except Exception as exc:  # noqa: BLE001 - quiet beats wrong
         notes.append(f"new-market query: {exc}")
         return []

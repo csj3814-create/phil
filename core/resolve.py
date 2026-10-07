@@ -23,7 +23,8 @@ import pmapi  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 LEDGER = ROOT / "journal" / "ledger.jsonl"
 FORECASTS = ROOT / "journal" / "forecasts.jsonl"
-VOID_GRACE_HOURS = 48
+# Creator/exchange settlement lags differ by venue (see core/pmapi.py).
+VOID_GRACE_HOURS = pmapi.VOID_GRACE_HOURS
 
 
 def load_jsonl(path):

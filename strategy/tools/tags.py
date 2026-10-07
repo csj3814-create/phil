@@ -33,6 +33,19 @@ import pmapi  # noqa: E402
 
 
 def list_tags(offset, limit):
+    """Venue taxonomy as [{id, slug, label}] (operator, 2026-10-07): Polymarket
+    tags; Manifold topics (id = topic slug, usable as discovery tag_id); Kalshi
+    event categories (id = category name, usable as discovery tag_id)."""
+    if pmapi.VENUE == "manifold":
+        groups = pmapi.get_json(f"{pmapi.API_BASE}/groups")
+        rows = [{"id": g.get("slug"), "slug": g.get("slug"), "label": g.get("name")}
+                for g in groups or []]
+        return rows[offset:offset + limit]
+    if pmapi.VENUE == "kalshi":
+        import venue_kalshi
+        cats = sorted({(c.get("_event") or {}).get("category") or ""
+                       for c in venue_kalshi.universe()} - {""})
+        return [{"id": c, "slug": c, "label": c} for c in cats][offset:offset + limit]
     return pmapi.get_json(f"{pmapi.GAMMA}/tags",
                           {"limit": limit, "offset": offset})
 

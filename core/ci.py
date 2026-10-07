@@ -49,7 +49,8 @@ def main():
     out = {"status": "unknown"}
     try:
         slug = repo_slug()
-        for ref in ("origin/main", "origin/main~1"):
+        branch = sh("git", "symbolic-ref", "--short", "-q", "HEAD") or "main"
+        for ref in (f"origin/{branch}", f"origin/{branch}~1"):
             sha = sh("git", "rev-parse", ref)
             runs = check_runs(slug, sha)
             if not runs:

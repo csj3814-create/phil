@@ -24,11 +24,22 @@ if [ -z "${PEARL_CONNECT_STORE:-}" ]; then
   echo "NOTE: PEARL_CONNECT_STORE is unset — this loop runs without the Pearl Connect tools (no mech second opinions, no real twins)" >&2
 fi
 
+# Branch this checkout cycles on. main is the original Polymarket experiment;
+# venue branches (manifold, kalshi) run the same agent against another market
+# and push only to their own branch.
+BRANCH="$(git symbolic-ref --short -q HEAD || echo main)"
+VENUE="$(python3 -c 'import json; print(json.load(open("config/protected.json", encoding="utf-8")).get("venue", "polymarket"))')"
+echo "branch: $BRANCH  venue: $VENUE" >&2
+
 REAL_MODE=0
 ARGS=()
 for a in "$@"; do
   [ "$a" = "--real" ] && REAL_MODE=1 || ARGS+=("$a")
 done
+if [ "$REAL_MODE" -eq 1 ] && [ "$VENUE" != "polymarket" ]; then
+  echo "ERROR: --real is not available on venue '$VENUE' (paper only; real execution exists for Polymarket alone)" >&2
+  exit 1
+fi
 CYCLES="${ARGS[0]:-1}"
 SLEEP_MIN="${ARGS[1]:-45}"
 
@@ -40,8 +51,8 @@ for i in $(seq 1 "$CYCLES"); do
   # (2026-08-17: 34 commits nearly lost). Reattach main to HEAD before any
   # sync or push logic can judge state.
   if ! git symbolic-ref -q HEAD >/dev/null; then
-    echo "WARNING: HEAD detached — reattaching main to HEAD" >&2
-    git checkout -B main HEAD
+    echo "WARNING: HEAD detached — reattaching $BRANCH to HEAD" >&2
+    git checkout -B "$BRANCH" HEAD
   fi
 
   # Sync with origin before cycling so a stale local main can never silently
@@ -55,14 +66,14 @@ for i in $(seq 1 "$CYCLES"); do
         || git fetch --deepen=1000 origin 2>/dev/null \
         || echo "WARNING: could not unshallow clone" >&2
     fi
-    if git fetch origin main 2>/dev/null; then
-      if git merge-base --is-ancestor HEAD origin/main; then
-        git checkout -B main origin/main
-      elif ! git merge-base --is-ancestor origin/main HEAD; then
-        echo "WARNING: local main and origin/main have diverged — resolve manually" >&2
+    if git fetch origin "$BRANCH" 2>/dev/null; then
+      if git merge-base --is-ancestor HEAD "origin/$BRANCH"; then
+        git checkout -B "$BRANCH" "origin/$BRANCH"
+      elif ! git merge-base --is-ancestor "origin/$BRANCH" HEAD; then
+        echo "WARNING: local $BRANCH and origin/$BRANCH have diverged — resolve manually" >&2
       fi
     else
-      echo "WARNING: could not fetch origin/main; cycling on local state" >&2
+      echo "WARNING: could not fetch origin/$BRANCH (first run on this branch?); cycling on local state" >&2
     fi
   fi
 
@@ -141,11 +152,15 @@ PY
   fi
   echo "model: $MODEL ($MODEL_WHY)" >&2
 
-  PROMPT="$(cat CYCLE.md)"
+  # CYCLE.md is written for main; on a venue branch every git ref in it means
+  # this branch instead.
+  branchify() { sed -e "s#origin/main#origin/$BRANCH#g" -e "s#origin main#origin $BRANCH#g" \
+                    -e "s#-B main#-B $BRANCH#g" "$@"; }
+  PROMPT="$(branchify CYCLE.md)"
   if [ "$REAL_MODE" -eq 1 ]; then
     if [ "$PEARL_UP" -eq 1 ] \
        && python3 core/real.py doctor 2>/dev/null | grep -q '"ready": true'; then
-      PROMPT="$(cat CYCLE.md REAL.md)"
+      PROMPT="$(branchify CYCLE.md REAL.md)"
     else
       echo "WARNING: --real requested but Pearl Connect signer not ready — running paper-only cycle" >&2
     fi
@@ -163,8 +178,8 @@ PY
          "Bash(git rev-parse:*)" "Bash(git log:*)" "Bash(git diff:*)"
          "Bash(git status:*)" "Bash(git symbolic-ref:*)"
          "Bash(git merge-base:*)" "Bash(git rev-list:*)"
-         "Bash(git fetch:*)" "Bash(git checkout -B main origin/main)"
-         "Bash(git checkout -B main HEAD)"
+         "Bash(git fetch:*)" "Bash(git checkout -B $BRANCH origin/$BRANCH)"
+         "Bash(git checkout -B $BRANCH HEAD)"
          "Bash(git rebase --continue)" "Bash(git rebase --abort)"
          "Bash(git rebase --quit)"
          "Bash(git pull:*)")
@@ -210,18 +225,18 @@ PY
   # unlocked. CI remains the guard on protected-path commits.
   if git remote get-url origin >/dev/null 2>&1; then
     if ! git symbolic-ref -q HEAD >/dev/null; then
-      echo "WARNING: HEAD detached after cycle — reattaching main to HEAD" >&2
-      git checkout -B main HEAD
+      echo "WARNING: HEAD detached after cycle — reattaching $BRANCH to HEAD" >&2
+      git checkout -B "$BRANCH" HEAD
     fi
-    if ! git push origin main; then
-      echo "push rejected — rebasing onto origin/main and retrying" >&2
-      if git pull --rebase origin main; then
-        git push origin main \
+    if ! git push origin "$BRANCH"; then
+      echo "push rejected — rebasing onto origin/$BRANCH and retrying" >&2
+      if git pull --rebase origin "$BRANCH"; then
+        git push origin "$BRANCH" \
           || echo "WARNING: push still failing after rebase — resolve manually" >&2
       else
         # Never hand-resolve a ledger conflict here; leave it for the operator.
         git rebase --abort 2>/dev/null || true
-        echo "WARNING: rebase onto origin/main failed — commits are local only, resolve manually" >&2
+        echo "WARNING: rebase onto origin/$BRANCH failed — commits are local only, resolve manually" >&2
       fi
     fi
   fi

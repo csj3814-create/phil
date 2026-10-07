@@ -35,6 +35,19 @@ operator's machine), the agent may also buy second-opinion predictions from
 the Olas mech marketplace (~$0.01 USDC each, paid by the service safe) —
 see CYCLE.md step 5a. Cloud cycles have no signer and skip this.
 
+## Venues (operator, 2026-10-07)
+
+`config/protected.json` -> `venue` picks the market API behind `core/pmapi.py`:
+`polymarket` (branch `main`, the original experiment), `manifold`
+(branch `manifold`, play-money AMM) or `kalshi` (branch `kalshi`, public
+order-book data only). The adapters (`core/venue_*.py`) answer in gamma/CLOB
+shapes so the rest of core is unchanged. Venue branches are paper-only:
+`real_trading_enabled` is false there and `loop.sh --real` refuses. Each
+branch keeps its own ledger, lease ref (`refs/phil/lease-<branch>`) and
+pushes only to itself; see `VENUE.md` on that branch.
+`core/screen_replay.py` (offline screener backtests) still reads Polymarket
+history directly and does not work on venue branches.
+
 ## Real execution (operator machine only)
 
 - Env: `PEARL_CONNECT_STORE` = Pearl Connect workspace dir (contains

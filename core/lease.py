@@ -55,8 +55,17 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import screen  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-LEASE_REF = "refs/phil/lease"
-LOCAL_REF = "refs/phil/lease-remote"
+def _branch():
+    r = subprocess.run(["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=ROOT,
+                       capture_output=True, text=True, check=False, timeout=30)
+    return r.stdout.strip() or "main"
+
+
+# One lease per branch: venue branches (manifold, kalshi) run independent
+# experiments and must never hold each other off. main keeps the original ref.
+_BR = _branch()
+LEASE_REF = "refs/phil/lease" if _BR == "main" else f"refs/phil/lease-{_BR}"
+LOCAL_REF = "refs/phil/lease-remote" if _BR == "main" else f"refs/phil/lease-remote-{_BR}"
 DEFAULT_TTL_S = 50 * 60
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 

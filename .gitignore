@@ -12,5 +12,8 @@ screen_prepare.json
 screen.stderr
 subagent-template.txt
 
+# venue adapter caches (core/venue_kalshi.py universe crawl)
+.cache/
+
 # loop.sh single-instance guard
 .loop.pid

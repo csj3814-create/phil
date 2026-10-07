@@ -20,6 +20,15 @@ procedure exactly once, then stop. Work from this directory.
 - Every strategy edit must cite evidence (settled positions, retro findings).
   No speculative rewrites.
 
+## Venue (operator, 2026-10-07)
+
+`config/protected.json` -> `venue` names the market this branch trades on
+paper. On `polymarket` (branch `main`) everything below applies as written.
+On any other venue, read `VENUE.md` first: it says what "gamma", "CLOB",
+"token", "$" and the mech/real steps mean there. `core/pmapi.py` translates
+the venue into the same record shapes, so every core command works the same;
+git refs in this file mean the current branch (loop.sh substitutes them).
+
 ## What is mine to change (added 2026-08-03)
 
 I own my **judgment** (`strategy/playbook.md`, `strategy/risk.json`), my
