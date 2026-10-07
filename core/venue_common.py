@@ -63,8 +63,12 @@ def split_token(tok):
 def iso_from_ms(ms):
     if ms in (None, ""):
         return None
-    return dt.datetime.fromtimestamp(float(ms) / 1000, dt.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ")
+    try:
+        t = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc) + dt.timedelta(
+            milliseconds=float(ms))
+    except (OverflowError, ValueError):
+        return "9999-12-31T00:00:00Z"   # "never closes" sentinels overflow
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def parse_iso(s):
